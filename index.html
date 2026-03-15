@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>İsim Şehir v8 - Final</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: sans-serif; -webkit-tap-highlight-color: transparent; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .hidden { display: none; }
+        .btn-active { background-color: #4f46e5 !important; color: white !important; }
+        .chat-area { height: 60px; overflow-y: auto; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 11px; padding: 4px; }
+        .vote-btn { background: #fee2e2; color: #ef4444; width: 20px; height: 20px; border-radius: 4px; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+        input:disabled { background-color: #f1f5f9; color: #94a3b8; }
+        .used-letter { background-color: #e5e7eb !important; color: #9ca3af !important; cursor: not-allowed; opacity: 0.5; }
+    </style>
+</head>
+<body class="p-3 bg-slate-100 flex flex-col h-full">
+
+    <div id="anaMenu" class="max-w-md mx-auto w-full flex flex-col h-full">
+        <h1 class="text-3xl font-black text-indigo-600 text-center py-4 italic">İSİM ŞEHİR</h1>
+        <div class="card p-4 mb-4">
+            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Kullanıcı Adı</label>
+            <input type="text" id="nickInput" placeholder="Nick'in..." class="w-full p-3 border rounded-xl mb-3 outline-none font-bold">
+            <div class="flex gap-2">
+                <div class="flex-1">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Lobi Şifresi</label>
+                    <input type="password" id="passInput" placeholder="****" class="w-full p-3 border rounded-xl outline-none text-sm">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="ekranDegistir('harfSecme')" class="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold shadow-md h-[46px]">Lobi Kur</button>
+                </div>
+            </div>
+        </div>
+        <h2 class="text-xs font-bold text-gray-400 mb-2 uppercase px-1">Aktif Lobiler</h2>
+        <div class="flex-1 overflow-y-auto space-y-2">
+            <div class="card p-4 flex justify-between items-center border-l-4 border-indigo-500" onclick="ekranDegistir('harfSecme')">
+                <div><p class="font-bold text-sm">Can'ın Lobisi</p><p class="text-[10px] text-gray-400">Oyuncu: 1/6 • 🔒</p></div>
+                <span class="text-indigo-600 text-xs font-bold italic">KATIL</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="harfSecme" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col gap-3 overflow-hidden">
+        <div class="card p-3">
+            <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Harf Seçimi</p>
+            <div class="grid grid-cols-6 gap-1 mb-2" id="harfGrid"></div>
+        </div>
+
+        <div class="card p-3 flex flex-col gap-2">
+            <p class="text-[10px] font-bold text-gray-400 uppercase border-b pb-1">Odadaki Oyuncular</p>
+            <div id="odadakilerListesi" class="space-y-2"></div>
+        </div>
+
+        <div class="card p-3 flex-1 flex flex-col gap-2">
+            <div id="chatBoxLobi" class="chat-area flex-1"></div>
+            <div class="flex gap-2">
+                <input type="text" id="chatInputLobi" placeholder="Yaz..." class="flex-1 p-2 border rounded-lg text-sm outline-none">
+                <button onclick="mesajGonder('Lobi')" class="bg-gray-800 text-white px-3 rounded-lg text-xs font-bold">GÖNDER</button>
+            </div>
+        </div>
+        <button id="hazirButonu" onclick="hazirOl()" class="w-full bg-green-500 text-white py-4 rounded-xl font-black shadow-lg">HAZIRIM!</button>
+    </div>
+
+    <div id="yarismaEkrani" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center mb-2 bg-white p-3 rounded-xl shadow-sm border-l-4 border-indigo-500">
+            <div class="bg-indigo-600 text-white w-10 h-10 rounded-lg flex items-center justify-center text-xl font-black" id="oyunHarfi">?</div>
+            <span class="text-2xl font-black text-red-600" id="oyunSayaci">60</span>
+            <button onclick="oyunBitir()" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-xs font-bold">BİTİR!</button>
+        </div>
+        <div class="flex-1 overflow-y-auto space-y-2 pb-2" id="inputsList"></div>
+        <div class="card p-2">
+            <div id="chatBoxGame" class="chat-area h-[40px] mb-2"></div>
+            <div class="flex gap-2">
+                <input type="text" id="chatInputGame" disabled placeholder="..." class="flex-1 p-2 border rounded-lg text-xs outline-none">
+                <button id="chatSendGame" disabled onclick="mesajGonder('Game')" class="bg-gray-300 text-white px-3 rounded-lg text-xs font-bold">Yaz</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="puanTablosu" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col overflow-hidden">
+        <h2 class="text-xl font-black text-center text-indigo-600 py-2">TUR SONU</h2>
+        <div class="flex-1 overflow-y-auto space-y-3 px-1" id="puanDizini"></div>
+        <div class="card p-3 mt-2 bg-indigo-600 text-white text-center">
+            <p class="text-[10px] font-bold opacity-70 italic uppercase">BU TURUN PUANI</p>
+            <p class="text-2xl font-black" id="turPuan">0</p>
+        </div>
+        <button onclick="ekranDegistir('harfSecme')" class="mt-2 bg-gray-800 text-white py-4 rounded-xl font-bold text-sm uppercase">YENİ TUR</button>
+    </div>
+
+    <script>
+        let kullaniciNick = "";
+        let secilenHarf = "A";
+        let toplamSkor = 0;
+        let turSkoru = 0;
+        let oyunInterval = null;
+        let gecmisHarfler = [];
+        const kategoriler = ["İsim", "Şehir", "Hayvan", "Bitki", "Eşya", "Ünlü"];
+        let votes = {};
+
+        function ekranDegistir(hedef) {
+            kullaniciNick = document.getElementById('nickInput').value || "Oyuncu";
+            document.querySelectorAll('body > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(hedef).classList.remove('hidden');
+            
+            if(hedef === 'harfSecme') {
+                harfleriYukle();
+                odadakileriGuncelle();
+            }
+            if(hedef === 'yarismaEkrani') inputsYukle();
+        }
+
+        function harfleriYukle() {
+            const harfler = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ".split("");
+            const grid = document.getElementById('harfGrid');
+            grid.innerHTML = "";
+            harfler.forEach(h => {
+                const btn = document.createElement('button');
+                btn.innerText = h;
+                if (gecmisHarfler.includes(h)) {
+                    btn.className = "aspect-square used-letter rounded-lg font-bold border text-xs flex items-center justify-center";
+                    btn.disabled = true;
+                } else {
+                    btn.className = "aspect-square bg-white rounded-lg font-bold border border-gray-200 text-xs flex items-center justify-center";
+                    btn.onclick = () => {
+                        document.querySelectorAll('#harfGrid button').forEach(b => b.classList.remove('btn-active'));
+                        btn.classList.add('btn-active');
+                        secilenHarf = h;
+                        odadakileriGuncelle();
+                    };
+                }
+                grid.appendChild(btn);
+            });
+        }
+
+        function odadakileriGuncelle() {
+            const list = document.getElementById('odadakilerListesi');
+            const hazirDurumu = document.getElementById('hazirButonu').innerText === "BAŞLIYOR..." ? "HAZIR" : "SEÇİYOR";
+            
+            list.innerHTML = `
+                <div class="flex justify-between items-center bg-indigo-50 p-2 rounded-lg">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-black text-indigo-700">${kullaniciNick} (Sen)</span>
+                        <span class="text-[10px] font-bold text-indigo-400">Harf: ${secilenHarf}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-black block">${toplamSkor} P</span>
+                        <span class="text-[9px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded uppercase">${hazirDurumu}</span>
+                    </div>
+                </div>`;
+        }
+
+        function inputsYukle() {
+            const container = document.getElementById('inputsList');
+            container.innerHTML = "";
+            kategoriler.forEach(kat => {
+                container.innerHTML += `<div class="card p-2"><label class="text-[9px] font-black text-indigo-400 uppercase ml-1">${kat}</label><input type="text" id="input_${kat}" class="w-full text-base font-bold uppercase outline-none px-1" placeholder="..."></div>`;
+            });
+        }
+
+        function mesajGonder(tip) {
+            const input = document.getElementById(`chatInput${tip}`);
+            const box = document.getElementById(`chatBox${tip}`);
+            if(input.value.trim()) {
+                box.innerHTML += `<div><b>${kullaniciNick}:</b> ${input.value}</div>`;
+                box.scrollTop = box.scrollHeight;
+                input.value = "";
+            }
+        }
+
+        function hazirOl() {
+            document.getElementById('hazirButonu').innerText = "BAŞLIYOR...";
+            odadakileriGuncelle();
+            setTimeout(() => { 
+                ekranDegistir('yarismaEkrani'); 
+                oyunBaslat(); 
+            }, 1000);
+        }
+
+        function oyunBaslat() {
+            if(!gecmisHarfler.includes(secilenHarf)) gecmisHarfler.push(secilenHarf);
+            document.getElementById('oyunHarfi').innerText = secilenHarf;
+            let sure = 60;
+            oyunInterval = setInterval(() => {
+                sure--;
+                document.getElementById('oyunSayaci').innerText = sure;
+                if(sure <= 0) oyunBitir();
+            }, 1000);
+        }
+
+        function oyunBitir() {
+            clearInterval(oyunInterval);
+            document.getElementById('chatInputGame').disabled = false;
+            document.getElementById('chatSendGame').disabled = false;
+            document.getElementById('chatSendGame').classList.replace('bg-gray-300', 'bg-indigo-600');
+            setTimeout(puanEkrani, 1000);
+        }
+
+        function puanEkrani() {
+            ekranDegistir('puanTablosu');
+            const container = document.getElementById('puanDizini');
+            container.innerHTML = "";
+            turSkoru = 0;
+
+            kategoriler.forEach(kat => {
+                const val = document.getElementById('input_' + kat).value.trim();
+                let puan = (val && val[0].toUpperCase() === secilenHarf) ? 10 : 0;
+                turSkoru += puan;
+                votes[kat] = 0;
+
+                container.innerHTML += `
+                <div class="card p-3" id="card_${kat}">
+                    <p class="text-[11px] font-black text-indigo-600 uppercase italic border-b mb-2 pb-1">${kat}:</p>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-gray-700">${kullaniciNick}: <span id="ans_${kat}" class="text-indigo-800">${val || "-"}</span></span>
+                            <div class="flex items-center gap-2">
+                                <span id="puan_text_${kat}" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${puan}p</span>
+                                <span id="vc_${kat}" class="text-[10px] font-bold text-red-500 hidden">0</span>
+                                <button onclick="oyVer('${kat}', ${puan})" class="vote-btn">X</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('turPuan').innerText = turSkoru;
+            toplamSkor += turSkoru;
+        }
+
+        function oyVer(kat, orijinalPuan) {
+            votes[kat]++;
+            const vc = document.getElementById(`vc_${kat}`);
+            vc.innerText = votes[kat];
+            vc.classList.remove('hidden');
+
+            if(votes[kat] >= 2) {
+                const card = document.getElementById(`card_${kat}`);
+                if(!card.classList.contains('opacity-50')) {
+                    const pText = document.getElementById(`puan_text_${kat}`);
+                    pText.innerText = "0p";
+                    pText.className = "text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded";
+                    
+                    turSkoru -= orijinalPuan;
+                    toplamSkor -= orijinalPuan;
+                    document.getElementById('turPuan').innerText = turSkoru;
+                    card.classList.add('opacity-50');
+                    document.getElementById(`ans_${kat}`).classList.add('line-through');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
