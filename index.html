@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>İsim Şehir Online v11 - Final</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: sans-serif; -webkit-tap-highlight-color: transparent; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .hidden { display: none !important; }
+        .btn-active { background-color: #4f46e5 !important; color: white !important; border-color: #4338ca !important; transform: scale(1.05); }
+        .vote-btn { background: #fee2e2; color: #ef4444; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 1px solid #fecaca; }
+        .used-letter { background-color: #e5e7eb !important; color: #9ca3af !important; cursor: not-allowed; opacity: 0.5; }
+        input:focus { border-color: #6366f1; ring: 2px solid #6366f1; }
+    </style>
+</head>
+<body class="p-3 bg-slate-100 flex flex-col h-full">
+
+    <div id="anaMenu" class="max-w-md mx-auto w-full flex flex-col h-full">
+        <h1 class="text-3xl font-black text-indigo-600 text-center py-6 italic tracking-tighter">İSİM ŞEHİR ONLINE</h1>
+        <div class="card p-5 mb-6 border-b-4 border-indigo-200">
+            <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Profil Bilgileri</label>
+            <input type="text" id="nickInput" placeholder="Nick'in..." class="w-full p-4 border rounded-xl mb-3 outline-none font-bold text-lg">
+            <button onclick="lobiKur()" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all">LOBİ KUR</button>
+        </div>
+        
+        <h2 class="text-xs font-black text-gray-500 mb-3 uppercase px-1 tracking-widest flex items-center gap-2">
+            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Aktif Lobiler
+        </h2>
+        <div id="lobiListesi" class="flex-1 overflow-y-auto space-y-3 pb-4">
+            </div>
+    </div>
+
+    <div id="harfSecme" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col gap-4 overflow-hidden">
+        <div class="card p-3">
+            <div class="flex justify-between items-center mb-2 px-1">
+                <p class="text-[11px] font-black text-gray-400 uppercase">Harf Seçimi</p>
+                <span id="kurucuRozeti" class="hidden text-[10px] bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-bold">ODA SAHİBİ</span>
+            </div>
+            <div class="grid grid-cols-6 gap-1.5" id="harfGrid"></div>
+        </div>
+
+        <div class="card p-4 flex flex-col gap-3">
+            <p class="text-[11px] font-black text-gray-400 uppercase border-b pb-2">Oyuncular</p>
+            <div id="odadakilerListesi" class="space-y-2 max-h-40 overflow-y-auto"></div>
+        </div>
+
+        <button id="hazirButonu" onclick="hazirDurumuDegistir()" class="w-full bg-orange-500 text-white py-5 rounded-2xl font-black shadow-xl uppercase tracking-wider mt-auto transform active:scale-95 transition-all">Hazır Değil</button>
+    </div>
+
+    <div id="yarismaEkrani" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-2xl shadow-md border-b-4 border-indigo-500">
+            <div class="bg-indigo-600 text-white w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-black shadow-inner" id="oyunHarfi">?</div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] font-bold text-gray-400 uppercase">SÜRE</span>
+                <span class="text-3xl font-black text-red-600 tabular-nums" id="oyunSayaci">60</span>
+            </div>
+            <button onclick="oyunDurdurButon()" class="bg-orange-500 text-white px-5 py-3 rounded-xl font-black text-xs shadow-md">BİTİR!</button>
+        </div>
+        <div class="flex-1 overflow-y-auto space-y-3 pb-6 px-1" id="inputsList"></div>
+    </div>
+
+    <div id="puanTablosu" class="hidden max-w-md mx-auto w-full flex-1 flex flex-col overflow-hidden">
+        <h2 class="text-2xl font-black text-center text-indigo-600 py-4 italic">TUR PUANLARI</h2>
+        <div class="flex-1 overflow-y-auto space-y-4 px-1" id="puanDizini"></div>
+        <div id="kurucuKontrol" class="hidden p-2">
+            <button onclick="yeniTuraDon()" class="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-sm uppercase shadow-2xl">YENİ TURU BAŞLAT</button>
+        </div>
+        <p id="beklemeMesaji" class="text-center text-gray-400 font-bold text-xs py-4 animate-pulse">Kurucu yeni turu başlatması bekleniyor...</p>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBY_TaHukPM9CK2T6fkPBW0_mkN-CIxDq8",
+            authDomain: "isim-sehir-online-6874e.firebaseapp.com",
+            databaseURL: "https://isim-sehir-online-6874e-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "isim-sehir-online-6874e",
+            storageBucket: "isim-sehir-online-6874e.firebasestorage.app",
+            messagingSenderId: "160393968200",
+            appId: "1:160393968200:web:92284732e84796751ef67d"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let kullaniciNick = "";
+        let aktifLobiId = null;
+        let isKurucu = false;
+        let secilenHarf = "A";
+        let oyunInterval = null;
+        const kategoriler = ["İsim", "Şehir", "Hayvan", "Bitki", "Eşya", "Ünlü"];
+
+        // --- CORE ---
+
+        function ekranDegistir(hedef) {
+            document.querySelectorAll('body > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(hedef).classList.remove('hidden');
+        }
+
+        function lobiKur() {
+            kullaniciNick = document.getElementById('nickInput').value.trim() || "Oyuncu_" + Math.floor(Math.random()*999);
+            isKurucu = true;
+            const lobiRef = db.ref('lobiler').push();
+            aktifLobiId = lobiRef.key;
+            
+            lobiRef.set({
+                kurucu: kullaniciNick,
+                durum: 'bekliyor',
+                secilenHarf: 'A',
+                gecmisHarfler: [],
+                oyuncular: {
+                    [kullaniciNick]: { nick: kullaniciNick, puan: 0, hazir: false, cevaplar: {} }
+                }
+            });
+
+            lobiRef.onDisconnect().remove();
+            ekranDegistir('harfSecme');
+            document.getElementById('kurucuRozeti').classList.remove('hidden');
+            lobiyiDinle();
+        }
+
+        function lobileriListele() {
+            db.ref('lobiler').on('value', (snapshot) => {
+                const list = document.getElementById('lobiListesi');
+                list.innerHTML = "";
+                if(!snapshot.exists()) {
+                    list.innerHTML = `<div class="text-center py-10 text-gray-400 font-medium text-sm">Henüz lobi kurulmamış.<br>İlk lobi kuran sen ol!</div>`;
+                    return;
+                }
+                snapshot.forEach((child) => {
+                    const lobi = child.val();
+                    if(lobi.durum === 'bekliyor') {
+                        list.innerHTML += `
+                            <div class="card p-5 flex justify-between items-center border-l-8 border-indigo-500 active:bg-indigo-50 transition-colors" onclick="lobiyeKatil('${child.key}')">
+                                <div>
+                                    <p class="font-black text-gray-800">${lobi.kurucu}'un Odası</p>
+                                    <p class="text-[10px] font-bold text-indigo-400 uppercase mt-1">Giriş Yapılabilir</p>
+                                </div>
+                                <div class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-black italic shadow-md">KATIL</div>
+                            </div>`;
+                    }
+                });
+            });
+        }
+
+        function lobiyeKatil(id) {
+            kullaniciNick = document.getElementById('nickInput').value.trim() || "Oyuncu_" + Math.floor(Math.random()*999);
+            aktifLobiId = id;
+            isKurucu = false;
+            
+            db.ref(`lobiler/${id}/oyuncular/${kullaniciNick}`).set({
+                nick: kullaniciNick, puan: 0, hazir: false, cevaplar: {}
+            });
+            
+            db.ref(`lobiler/${id}/oyuncular/${kullaniciNick}`).onDisconnect().remove();
+            ekranDegistir('harfSecme');
+            lobiyiDinle();
+        }
+
+        function lobiyiDinle() {
+            db.ref(`lobiler/${aktifLobiId}`).on('value', (snapshot) => {
+                const lobi = snapshot.val();
+                if(!lobi) {
+                    ekranDegistir('anaMenu');
+                    return;
+                }
+
+                secilenHarf = lobi.secilenHarf;
+                harfleriYukle(lobi.gecmisHarfler || []);
+
+                // Oyuncu Listesi
+                const olist = document.getElementById('odadakilerListesi');
+                olist.innerHTML = "";
+                let herkesHazir = true;
+                let sayi = 0;
+
+                for(let n in lobi.oyuncular) {
+                    sayi++;
+                    const p = lobi.oyuncular[n];
+                    if(!p.hazir) herkesHazir = false;
+                    olist.innerHTML += `
+                        <div class="flex justify-between items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                            <span class="text-sm font-black ${n === kullaniciNick ? 'text-indigo-600' : 'text-gray-700'}">${n} ${n === lobi.kurucu ? '👑' : ''}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-[11px] font-bold text-gray-400">${p.puan} P</span>
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded ${p.hazir ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">${p.hazir ? 'HAZIR' : '...'}</span>
+                            </div>
+                        </div>`;
+                }
+
+                // Buton Kontrolleri
+                const hb = document.getElementById('hazirButonu');
+                if(isKurucu) {
+                    if(herkesHazir && sayi > 1) {
+                        hb.innerText = "OYUNU BAŞLAT";
+                        hb.className = "w-full bg-indigo-600 text-white py-5 rounded-2xl font-black shadow-xl animate-bounce";
+                        hb.onclick = () => db.ref(`lobiler/${aktifLobiId}`).update({ durum: 'oyun_basladi' });
+                    } else {
+                        hb.innerText = lobi.oyuncular[kullaniciNick].hazir ? "BAŞLAMAK İÇİN HERKESİ BEKLE" : "KENDİNİ HAZIRLA";
+                        hb.onclick = hazirDurumuDegistir;
+                    }
+                }
+
+                // Durum Yönetimi
+                if(lobi.durum === 'oyun_basladi' && document.getElementById('yarismaEkrani').classList.contains('hidden')) {
+                    oyunEkraninaGec();
+                }
+                if(lobi.durum === 'puanlama' && !document.getElementById('yarismaEkrani').classList.contains('hidden')) {
+                    puanEkraninaGec(lobi);
+                }
+                if(lobi.durum === 'bekliyor' && !document.getElementById('puanTablosu').classList.contains('hidden')) {
+                    ekranDegistir('harfSecme');
+                }
+            });
+        }
+
+        function harfleriYukle(gecmis) {
+            const harfler = "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ".split("");
+            const grid = document.getElementById('harfGrid');
+            grid.innerHTML = "";
+            
+            harfler.forEach(h => {
+                const btn = document.createElement('button');
+                btn.innerText = h;
+                if(gecmis.includes(h)) {
+                    btn.className = "aspect-square used-letter rounded-lg font-bold border text-xs flex items-center justify-center";
+                } else {
+                    const active = (secilenHarf === h);
+                    btn.className = `aspect-square bg-white rounded-lg font-bold border border-gray-200 text-[13px] flex items-center justify-center transition-all ${active ? 'btn-active' : ''}`;
+                    btn.onclick = () => {
+                        if(isKurucu) db.ref(`lobiler/${aktifLobiId}`).update({ secilenHarf: h });
+                        else alert("Sadece oda sahibi harf seçebilir!");
+                    };
+                }
+                grid.appendChild(btn);
+            });
+        }
+
+        function hazirDurumuDegistir() {
+            const curr = document.getElementById('hazirButonu').innerText === "HAZIRIM!";
+            db.ref(`lobiler/${aktifLobiId}/oyuncular/${kullaniciNick}`).update({ hazir: !curr });
+            document.getElementById('hazirButonu').innerText = !curr ? "HAZIRIM!" : "HAZIR DEĞİL";
+            document.getElementById('hazirButonu').className = !curr ? "w-full bg-green-500 text-white py-5 rounded-2xl font-black shadow-xl" : "w-full bg-orange-500 text-white py-5 rounded-2xl font-black shadow-xl";
+        }
+
+        function oyunEkraninaGec() {
+            ekranDegistir('yarismaEkrani');
+            const container = document.getElementById('inputsList');
+            container.innerHTML = "";
+            kategoriler.forEach(kat => {
+                container.innerHTML += `
+                    <div class="card p-3 border-l-4 border-indigo-400">
+                        <label class="text-[10px] font-black text-indigo-400 uppercase mb-1 block">${kat}</label>
+                        <input type="text" id="input_${kat}" class="w-full text-lg font-black uppercase outline-none" placeholder="...">
+                    </div>`;
+            });
+            document.getElementById('oyunHarfi').innerText = secilenHarf;
+            let s = 60;
+            if(oyunInterval) clearInterval(oyunInterval);
+            oyunInterval = setInterval(() => {
+                s--;
+                document.getElementById('oyunSayaci').innerText = s;
+                if(s <= 0) oyunDurdurButon();
+            }, 1000);
+        }
+
+        function oyunDurdurButon() {
+            let cevaplar = {};
+            kategoriler.forEach(k => cevaplar[k] = document.getElementById('input_'+k).value.trim());
+            db.ref(`lobiler/${aktifLobiId}/oyuncular/${kullaniciNick}/cevaplar`).set(cevaplar);
+            db.ref(`lobiler/${aktifLobiId}`).update({ durum: 'puanlama' });
+        }
+
+        function puanEkraninaGec(lobi) {
+            clearInterval(oyunInterval);
+            ekranDegistir('puanTablosu');
+            const container = document.getElementById('puanDizini');
+            container.innerHTML = "";
+            
+            if(isKurucu) {
+                document.getElementById('kurucuKontrol').classList.remove('hidden');
+                document.getElementById('beklemeMesaji').classList.add('hidden');
+            } else {
+                document.getElementById('kurucuKontrol').classList.add('hidden');
+                document.getElementById('beklemeMesaji').classList.remove('hidden');
+            }
+
+            kategoriler.forEach(kat => {
+                let html = `<div class="card p-4 shadow-sm border border-gray-100"><p class="text-[11px] font-black text-indigo-500 uppercase border-b border-indigo-50 pb-2 mb-3 tracking-tighter">${kat}:</p><div class="space-y-3">`;
+                for(let n in lobi.oyuncular) {
+                    const oyuncu = lobi.oyuncular[n];
+                    const ans = (oyuncu.cevaplar && oyuncu.cevaplar[kat]) ? oyuncu.cevaplar[kat] : "-";
+                    const isCorrect = ans && ans[0]?.toUpperCase() === lobi.secilenHarf;
+                    const puan = isCorrect ? 10 : 0;
+                    
+                    html += `
+                        <div class="flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-gray-400">${n}</span>
+                                <span id="text_${n}_${kat}" class="text-sm font-black text-gray-800 ${ans === '-' ? 'opacity-30' : ''}">${ans}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="puan_${n}_${kat}" class="text-[10px] font-black ${puan > 0 ? 'text-indigo-600 bg-indigo-50' : 'text-red-400 bg-red-50'} px-2 py-1 rounded-lg">${puan}p</span>
+                                <button onclick="oyVer('${n}', '${kat}', ${puan})" class="vote-btn">X</button>
+                            </div>
+                        </div>`;
+                }
+                html += `</div></div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function oyVer(targetNick, kat, p) {
+            if(p > 0) {
+                db.ref(`lobiler/${aktifLobiId}/oyuncular/${targetNick}`).once('value', s => {
+                    let cp = s.val().puan || 0;
+                    db.ref(`lobiler/${aktifLobiId}/oyuncular/${targetNick}`).update({ puan: Math.max(0, cp - 10) });
+                });
+                alert(targetNick + " için puan düşürüldü!");
+            }
+        }
+
+        function yeniTuraDon() {
+            db.ref(`lobiler/${aktifLobiId}/gecmisHarfler`).once('value', s => {
+                let gecmis = s.val() || [];
+                gecmis.push(secilenHarf);
+                
+                db.ref(`lobiler/${aktifLobiId}`).update({
+                    durum: 'bekliyor',
+                    gecmisHarfler: gecmis,
+                    secilenHarf: '?'
+                });
+                
+                db.ref(`lobiler/${aktifLobiId}/oyuncular`).once('value', snps => {
+                    snps.forEach(c => c.ref.update({ hazir: false, cevaplar: {} }));
+                });
+            });
+        }
+
+        // Başla
+        lobileriListele();
+    </script>
+</body>
+</html>
